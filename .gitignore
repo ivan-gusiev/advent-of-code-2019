@@ -1,0 +1,9 @@
+.vscode/
+.idea/
+.stack-work/
+dist/
+dist-newstyle/
+out/
+*.iml
+.ghc.environment.*
+cabal.project.local*
