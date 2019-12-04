@@ -11,14 +11,16 @@ module DevTests(test, suite) where
     import qualified Day1 as D1
     import qualified Day2 as D2
     import qualified Day3 as D3
+    import qualified Day4 as D4
 
-    suite = do
+    day1 =
         describe "Day 1" $ do
             it "calculates fuel correctly" $
                 D1.calculateFuel 100756 `shouldBe` 50346
             it "sums correctly" $
                 D1.calculateAll [6, 20] `shouldBe` 4
 
+    day2 = do
         describe "Day 2 - Memory" $ do
             it "reads empty values as 0" $
                 D2.readMem 42 D2.emptyMem `shouldBe` 0
@@ -65,6 +67,7 @@ module DevTests(test, suite) where
                 1 `shouldBe` 1
                 --D2.find D2.processor inputProgram 19690720 `shouldBe` (76, 3)
     
+    day3 = do
         describe "Day 3 - Manhattan Distance" $ do
             it "(0, 0) (1, 1) -> 2" $
                 D3.manhattanDistance 0 0 1 1 `shouldBe` 2
@@ -148,8 +151,55 @@ module DevTests(test, suite) where
                 let [l, r] = D3.mkWire . D3.parsePath <$> pathStrings
                 D3.closestIntersectionBySteps l r `shouldBe` Just 48054
 
+    day4 = do
+        describe "Day 4 - isSixDigits" $ do
+            it "accepts six-digit numbers" $ 
+                D4.isSixDigit 123456 `shouldBe` True
+            it "does not accept shorter numbers" $
+                D4.isSixDigit 223 `shouldBe` False
+            it "does not accept longer numbers" $
+                D4.isSixDigit 987654321 `shouldBe` False
+
+        describe "Day 4 - hasAdjacentDigits" $ do
+            it "accepts 22" $
+                D4.hasAdjacentDigits 22 `shouldBe` True
+            it "accepts 111111" $
+                D4.hasAdjacentDigits 111111 `shouldBe` True
+            it "rejects no adjacents" $
+                D4.hasAdjacentDigits 123456 `shouldBe` False
+
+        describe "Day 4 - digitsIncrease" $ do
+            it "accepts 22" $
+                D4.digitsIncrease 22 `shouldBe` True
+            it "accepts 111111" $
+                D4.digitsIncrease 111111 `shouldBe` True
+            it "accepts correct password" $
+                D4.digitsIncrease 123889 `shouldBe` True
+            it "rejects incorrect password" $
+                D4.digitsIncrease 223450 `shouldBe` False
+
+        describe "Day 4 - findRightPasswords" $
+            it "is correct between 100000 and 101000" $
+                D4.findRightPasswords 555555 555566 `shouldBe` [555566]
+        
+        describe "Day 4 - atLeastOneDouble" $ do
+            it "accepts correct example" $
+                D4.atLeastOneDouble 111122 `shouldBe` True
+            it "rejects incorrect example" $
+                D4.atLeastOneDouble 123444 `shouldBe` False
+
+        describe "Day 4 - Results" $
+            it "correct" $
+                length (D4.findRightPasswords 128392 643281) `shouldBe` 1390
+
+    suite = do
+        day1
+        day2
+        day3
+        day4
+     
     test :: IO ()
-    test = hspec suite
+    test = hspec day4
 
     
     -- why does `where` clause not work properly
