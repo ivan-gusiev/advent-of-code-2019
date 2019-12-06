@@ -3,6 +3,7 @@
 module DevTests(test, suite) where
 
     import Test.Hspec
+    import Data.Either.Combinators(fromRight')
     import Data.List(intersperse)
     import Data.Map(toList)
     import qualified Data.Map as DM
@@ -12,6 +13,7 @@ module DevTests(test, suite) where
     import qualified Day2 as D2
     import qualified Day3 as D3
     import qualified Day4 as D4
+    import qualified Day5 as D5
 
     day1 =
         describe "Day 1" $ do
@@ -64,8 +66,7 @@ module DevTests(test, suite) where
                 let mem = D2.run D2.processor inputProgram
                 D2.readMem 0 mem `shouldBe` 5534943
             it "calculates result 2" $ 
-                1 `shouldBe` 1
-                --D2.find D2.processor inputProgram 19690720 `shouldBe` (76, 3)
+                D2.find D2.processor inputProgram 19690720 `shouldBe` (76, 3)
     
     day3 = do
         describe "Day 3 - Manhattan Distance" $ do
@@ -144,7 +145,7 @@ module DevTests(test, suite) where
                 let w1 = D3.mkWire $ D3.parsePath "R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51"
                 let w2 = D3.mkWire $ D3.parsePath "U98,R91,D20,R16,D67,R40,U7,R15,U6,R7"
                 D3.closestIntersectionBySteps w1 w2 `shouldBe` Just 410
-        
+
         describe "Day 3 - Results" $
             it "correct" $ do
                 pathStrings <- lines <$> readFile "../inputs/d3.txt"
@@ -192,14 +193,136 @@ module DevTests(test, suite) where
             it "correct" $
                 length (D4.findRightPasswords 128392 643281) `shouldBe` 1390
 
+    day5 = do
+        describe "Day 5 - Memory" $ do
+            it "reads empty values as 0" $
+                D5.readMem 42 D5.emptyMem `shouldBe` 0
+
+            let mem = D5.writeMem 42 43 D5.emptyMem
+            it "reads a written value" $
+                D5.readMem 42 mem `shouldBe` 43
+
+        let comp = D5.mkComputer [(0, 1), (1, 5), (2, 6)]
+        let modes = replicate 3 D5.positionMode
+        let modes' = replicate 3 D5.immediateMode
+        describe "Day 5 - Opcode 1" $ do
+            it "m[a] + m[b] -> m[c]" $
+                D5.readMem 3 (D5.cmem $ D5.opcode1 modes [1, 2, 3] comp) `shouldBe` 11
+            it "aliases correctly (a + b -> a)" $
+                D5.readMem 1 (D5.cmem $ D5.opcode1 modes [1, 2, 1] comp) `shouldBe` 11
+            it "works immediate" $
+                D5.readMem 1 (D5.cmem $ D5.opcode1 modes' [1, 2, 1] comp) `shouldBe` 3
+            it "works mixed" $ do
+                let mixed = head modes : tail modes'
+                D5.readMem 3 (D5.cmem $ D5.opcode1 mixed [1, 2, 3] comp) `shouldBe` 7
+            it "works mixed differently" $ do
+                let mixed = head modes' : tail modes
+                D5.readMem 3 (D5.cmem $ D5.opcode1 mixed [1, 2, 3] comp) `shouldBe` 7
+
+        describe "Day 5 - Opcode 2" $
+            it "m[a] * m[b] -> m[c]" $
+                D5.readMem 3 (D5.cmem $ D5.opcode2 modes [1, 2, 3] comp) `shouldBe` 30
+        
+        describe "Day 5 - Opcode 3" $
+            it "i -> m[a]" $ do
+                let comp' = D5.writeInput 42 comp
+                let comp'' = D5.opcode3 modes [3] comp'
+                D5.readMem 3 (D5.cmem comp'') `shouldBe` 42
+                D5.cin comp'' `shouldBe` []
+
+        describe "Day 5 - Opcode 4" $
+            it "m[a] -> o" $ do
+                let comp' = D5.opcode4 modes [2] comp
+                D5.cout comp' `shouldBe` [6]
+
+        describe "Day 5 - Opcode 99" $
+            it "halts the program" $
+                D5.opcode99 modes [1, 2, 3] comp `shouldBe` comp { D5.halt = True }
+        
+        describe "Day 5 - Decode" $ do
+            it "simple" $
+                (($ comp) . ($ 1) <$> snd (fromRight' $ D5.decode D5.intcode 1)) 
+                    `shouldBe` [5,5,5]
+            it "example 1 works" $ do
+                let comp = D5.mkComputer $ D5.loadBytes [1002, 4, 3, 4, 33]
+                let result = D5.cmem $ fromRight' $ D5.execute comp
+                D5.readMem 4 result `shouldBe` 99
+        
+        let inputProgram = D5.writeMem 1 12 $
+                           D5.writeMem 2 02 $
+                           D5.loadBytes [1,0,0,3,1,1,2,3,1,3,4,3,1,5,0,3,2,6,1,19,1,19,9,23,1,23,9,27,1,10,27,31,1,13,31,35,1,35,10,39,2,39,9,43,1,43,13,47,1,5,47,51,1,6,51,55,1,13,55,59,1,59,6,63,1,63,10,67,2,67,6,71,1,71,5,75,2,75,10,79,1,79,6,83,1,83,5,87,1,87,6,91,1,91,13,95,1,95,6,99,2,99,10,103,1,103,6,107,2,6,107,111,1,13,111,115,2,115,10,119,1,119,5,123,2,10,123,127,2,127,9,131,1,5,131,135,2,10,135,139,2,139,9,143,1,143,2,147,1,5,147,0,99,2,0,14,0]
+
+        describe "Day 5 - Execute" $ do
+            it "my example works" $
+                let program = [2, 5, 6, 5, 0, 2, 1] in
+                testOne program program
+            it "example 1 works" $ 
+                testOne [1,0,0,0,99] [2,0,0,0,99]
+            it "example 2 works" $ 
+                testOne [2,3,0,3,99] [2,3,0,6,99]
+            it "example 3 works" $ 
+                testProgram [1,1,1,4,99,5,6,0,99] [30,1,1,4,2,5,6,0,99]
+
+        describe "Day 5 - More opcodes" $ do
+            it "works with example 1" $ do
+                let program = D5.loadBytes [3,9,8,9,10,9,4,9,99,-1,8]
+                let comp x = D5.writeInput x $ D5.mkComputer program
+                D5.runOut (comp 8) `shouldBe` Right 1
+                D5.runOut (comp 9) `shouldBe` Right 0
+            it "works with example 2" $ do
+                let program = D5.loadBytes [3,9,7,9,10,9,4,9,99,-1,8]
+                let comp x = D5.writeInput x $ D5.mkComputer program
+                D5.runOut (comp 7) `shouldBe` Right 1
+                D5.runOut (comp 8) `shouldBe` Right 0
+            it "works with example 3" $ do
+                let program = D5.loadBytes [3,3,1108,-1,8,3,4,3,99]
+                let comp x = D5.writeInput x $ D5.mkComputer program
+                D5.runOut (comp 7) `shouldBe` Right 0
+                D5.runOut (comp 8) `shouldBe` Right 1
+            it "works with example 4" $ do
+                let program = D5.loadBytes [3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9]
+                let comp x = D5.writeInput x $ D5.mkComputer program
+                D5.runOut (comp 0) `shouldBe` Right 0
+                D5.runOut (comp 8) `shouldBe` Right 1
+            it "works with example 5" $ do
+                let program = D5.loadBytes [3,3,1105,-1,9,1101,0,0,12,4,12,99,1]
+                let comp x = D5.writeInput x $ D5.mkComputer program
+                D5.runOut (comp 0) `shouldBe` Right 0
+                D5.runOut (comp 8) `shouldBe` Right 1
+            it "works with example 6" $ do
+                let program = D5.loadBytes [3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,
+                                            1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,
+                                            999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99]
+                let comp x = D5.writeInput x $ D5.mkComputer program
+                D5.runOut (comp (-7)) `shouldBe` Right 999
+                D5.runOut (comp 8) `shouldBe` Right 1000
+                D5.runOut (comp 90) `shouldBe` Right 1001
+
+        describe "Day 5 - Results" $ do
+            let file = readFile "../inputs/d5.txt"
+            it "first part correct" $ do
+                nums <- file
+                let str = "[" <> nums <> "]"
+                let program = D5.loadBytes $ read str
+                let comp = D5.writeInput 1 $ D5.mkComputer program
+                D5.runOut comp `shouldBe` Right 15426686
+            it "first part correct" $ do
+                nums <- file
+                let str = "[" <> nums <> "]"
+                let program = D5.loadBytes $ read str
+                let comp = D5.writeInput 5 $ D5.mkComputer program
+                D5.runOut comp `shouldBe` Right 11430197
+
+
     suite = do
         day1
         day2
         day3
         day4
+        day5
      
     test :: IO ()
-    test = hspec day4
+    test = hspec day5
 
     
     -- why does `where` clause not work properly

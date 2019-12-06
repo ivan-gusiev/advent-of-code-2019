@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 
 module Day4 (
     isSixDigit, hasAdjacentDigits, digitsIncrease, atLeastOneDouble
