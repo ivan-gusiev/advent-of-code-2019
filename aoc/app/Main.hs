@@ -1,6 +1,7 @@
 module Main where
 
-import Lib
+import Day4
 
 main :: IO ()
-main = someFunc
+main = 
+    print $ length $ findRightPasswords 0 9999999
